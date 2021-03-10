@@ -15,7 +15,13 @@
 
 \begin{document}
 \begin{abstract}
-
+This note proposes extensions to the Virtual Observatory's registry
+ecosystem to make advanced column statistics available for data
+discovery.  The guiding use case here is to enable ``blind'' discovery,
+i.e., data discovery driven by physical properties of the data rather
+than textual descriptions; for instance, people would constrain their
+discovery query by ``more or less complete to $20^m$'' rather than
+trying a full text search for ``deep survey''.
 \end{abstract}
 
 
@@ -36,20 +42,153 @@ infrastructure that enable VO applications.
 
 \section{Introduction}
 
-???? Write something ????
+Blind discovery, the location of data relevant to some piece of research
+not by prior knowledge of resources or by full text search by using
+constraint derived from the data itself (``physical property''), in some
+way is the holy grail of data discovery, in particular facilitating the
+re-use of specialised observations that may be little known outside of a
+specific community but may, for instance, go much deeper than the
+well-known global surveys.
+
+In Astronomy, the most important physical constraint for blind discovery
+arguably is the the location in space, time, and spectrum.  Making these
+properties usable for searches in the VO Registry was the focus of the
+Roadmap for Space-Time Discovery in the VO Registry \citep{std:srcReg}.
+
+With a proposed recommendation of VODataService 1.2 \citep{pr:VODS12}
+under community review while this note is written, a major part of the
+road towards STC-enabled discovery has been taken, and thus it is time
+to tackle the next class of constraints useful in discovery: statistical
+properties of the data.
+
+To keep the problem tractable, we assume that the data described is
+tabular in nature.  This of course does not preclude blind discovery on
+collections of array-like data (i.e., observations like images,
+spectra, time series).  Such collections are typically published to the
+VO through tabular metadata collections, governed by standards like
+ObsCore \citep{2017ivoa.spec.0509L} or the upcoming EPN-TAP standard for
+publishing solar system data.  Statistics on the columns for such
+relational representations can reasonably be expected to be useful for
+many types of blind discovery of services serving data sets.  Hence,
+this Note only deals with column statistics and leaves the mapping of
+array collections to relational representations to other documents.
+
+\subsection{Use Cases}
+\label{sect:uc}
+
+Use cases guiding the design of the present proposals include:
+
+\begin{description}
+\item[Deep Survey] Give me data for the M32 reaching 25 mag in the
+infrared K band.
+
+\item[High Redshift] I am looking for Galaxies with redshifts above 1.
+
+\item[High Precision] I need a catalogue of proper motions with errors
+below $0.2\,\rm mas/yr$.
+
+\item[High Precision advanced] I need a catalogue of proper motions with
+errors below $0.2\,\rm mas/yr$ at $15^{\rm m}$ in V.
+
+\item[Calibrated] Where are flux-calibrated spectra for stars in
+globular clusters?
+
+\item[Planning] A service-spanning query engine wants to estimate how
+many columns a query constrained with \verb|WHERE col<30| might yield.
+\end{description}
 
 
-\appendix
-\section{Changes from Previous Versions}
+\section{Prior Art}
 
-No previous versions yet.  
-% these would be subsections "Changes from v. WD-..."
-% Use itemize environments.
+In VO standards, column statistics have already been part of
+VOTable version 1.1 \citep{2004ivoa.spec.0811O}, which defined the
+\xmlel{MIN} and \xmlel{MAX} children of \xmlel{VALUES}, as well as
+\xmlel{OPTION} elements to declare the values enumerated columns take.
+VOTable allows qualifying \xmlel{VALUES} with a \xmlel{type} attribute;
+for data discovery, only the case of \verb|actual| is interesting.
+
+When the content model of \xmlel{vs:BaseParam} and its derivatives in
+VODataService \citep{2010ivoa.spec.1202P} was designed, VOTable's
+\xmlel{FIELD} was obviously taken as a model, but the column statistics
+was not taken over.
+
+In consequence, the relational metadata schema for the
+\verb|columns| table in TAP \citep{2019ivoa.spec.0927D} even in
+version 1.1 does not include any column statistics.
+
+Meanwhile, with the release of Gaia DR1 in 2016, G\'egory Mantelet
+experimented with advanced column statistics on his Gaia mirror
+\citep{data:arigaia}, exposing them both through the service's TAP
+schema -- where extension columns are explictly allowed and even shown
+by clients like TOPCAT \citep{soft:topcat} -- and the VOSI tables
+endpoint, the latter using VODataService's extension hook of allowing
+arbitrary non-namespace attributes on \xmlel{column}.
+
+Mantelet's column statistics includes:
+
+\begin{description}
+\item[min\_value, max\_value] As in VOTable with \xmlel{type} \verb|actual|
+\item[q1, median, q3} The four quartiles of the distribution of the
+values in the column
+\item[mean] The column values' mean value
+\item[filling] The number of non-NULL values in the column
+\end{description}
 
 
-% NOTE: IVOA recommendations must be cited from docrepo rather than ivoabib
-% (REC entries there are for legacy documents only)
-\bibliography{ivoatex/ivoabib,ivoatex/docrepo}
+\section{Proposed Metadata}
+
+Clearly, the nature and amount of metadata to be processed strongly
+depends on the use cases envisioned.  For instance, the use case
+\emph{Planning} in sect.~\ref{sect:uc} will clearly profit from having
+detailed histograms, in particular when one has to deal with multimodal
+distributions.  The \emph{High precision advanced} use case would even
+need the joint distribution of, in this case, proper motion errors and
+magnitudes.
+
+On the other hand, complex metadata statistics are hard to generate,
+distribute and use.  It is therefore desirable to identify the
+minimal set of metadata that already enables the most important use
+cases.
+
+Varying Mantelet's metadata set, we propose the following items for
+non-enumerated\footnote{The limit between enumerated and
+continuous columns is not a principled one in digital computers; the
+practical definition would be: a numeric column is continuous if an
+extra value would not have to be explained.} columns:
+
+\begin{description}
+\item[min\_value, max\_value] As in Mantelet.  While the items as such are
+typically rather unreliable, as for most astrophysically relevant
+distributions the tails are sparse, they have obvious interpretations,
+allow an estimate of the tailedness of the distribution, and they are
+part of the VOTable model.  Hence, it seems prudent to retain them.
+\item[percentile03, median, percentile97} the 3rd, 50th, and 97th
+percentiles of the distribution of the values in the column.
+\item[fill\_factor] The ratio of non-NULL values to the number of rows
+in the table.
+\end{description}
+
+Changes versus the Mantelet model include:
+
+\begin{itemize}
+\item We have dropped the mean, as we believe the median is a robust
+alternative that has the additional advantage that it is stable against
+common arithmetic operations (e.g., going from parallax to distance).
+\item We have replaced the quartiles with the 3rd and 97th percentiles.
+This is because we believe that in general having robust estimates for
+the extremes of a distribution is more important of data discovery than
+understanding its behaviour around its modus.  3 and 97 were used
+because for a Gauss distributed random variable, this corresponds to
+roughly $2\sigma$ (or 95\% of the values), which seems a good and
+intuitive handle for ``characteristic data'').
+\item We are dividing Mantelet's filling by the number of rows in the
+table in question.  This is to save clients a lookup in a different
+table to ascertain this value when filtering out tables that only
+occasionally have data of the 
+
+\end{itemize}
+
+\bibliography{ivoatex/ivoabib,ivoatex/docrepo,local.bib}
 
 
 \end{document}
