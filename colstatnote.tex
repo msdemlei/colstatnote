@@ -1,6 +1,13 @@
 \documentclass[11pt,a4paper]{ivoa}
 \input tthdefs
 
+\lstloadlanguages{SQL,XML}
+\lstset{flexiblecolumns=true,tagstyle=\ttfamily,
+  showstringspaces=False}
+
+\definecolor{rtcolor}{rgb}{0.15,0.4,0.3}
+\newcommand{\rtent}[1]{\texttt{\color{rtcolor} #1}}
+
 \title{Towards Blind Discovery 2: Advanced Column Statistics}
 
 \ivoagroup{Registry}
@@ -18,8 +25,8 @@
 This note proposes extensions to the Virtual Observatory's registry
 ecosystem to make advanced column statistics available for data
 discovery.  The guiding use case here is to enable ``blind'' discovery,
-i.e., data discovery driven by physical properties of the data rather
-than textual descriptions; for instance, people would constrain their
+i.e., search by physical properties of the data rather
+than its textual description. For instance, people would constrain their
 discovery query by ``more or less complete to $20^m$'' rather than
 trying a full text search for ``deep survey''.
 \end{abstract}
@@ -43,8 +50,9 @@ infrastructure that enable VO applications.
 \section{Introduction}
 
 Blind discovery, the location of data relevant to some piece of research
-not by prior knowledge of resources or by full text search by using
-constraint derived from the data itself (``physical property''), in some
+not by prior knowledge of resources or by a full text search but 
+instead using
+constraints derived from the data itself (``physical properties''), in some
 way is the holy grail of data discovery, in particular facilitating the
 re-use of specialised observations that may be little known outside of a
 specific community but may, for instance, go much deeper than the
@@ -53,23 +61,24 @@ well-known global surveys.
 In Astronomy, the most important physical constraint for blind discovery
 arguably is the the location in space, time, and spectrum.  Making these
 properties usable for searches in the VO Registry was the focus of the
-Roadmap for Space-Time Discovery in the VO Registry \citep{std:srcReg}.
+Roadmap for Space-Time Discovery in the VO Registry \citep{std:stcReg}.
 
 With a proposed recommendation of VODataService 1.2 \citep{pr:VODS12}
 under community review while this note is written, a major part of the
 road towards STC-enabled discovery has been taken, and thus it is time
 to tackle the next class of constraints useful in discovery: statistical
-properties of the data.
+properties of tabular data.
 
-To keep the problem tractable, we assume that the data described is
-tabular in nature.  This of course does not preclude blind discovery on
-collections of array-like data (i.e., observations like images,
+Confining oneself to tabular (or, really, relational) data keeps the
+problem tractable.
+It also does not preclude blind discovery on
+collections of array-like data (in particular observations like images,
 spectra, time series).  Such collections are typically published to the
 VO through tabular metadata collections, governed by standards like
-ObsCore \citep{2017ivoa.spec.0509L} or the upcoming EPN-TAP standard for
-publishing solar system data.  Statistics on the columns for such
+ObsCore \citep{2017ivoa.spec.0509L} or EPN-TAP (still in WD at the time
+of writing).  Statistics on the columns for such
 relational representations can reasonably be expected to be useful for
-many types of blind discovery of services serving data sets.  Hence,
+many types of discovery of the data collections.  Hence,
 this Note only deals with column statistics and leaves the mapping of
 array collections to relational representations to other documents.
 
@@ -108,7 +117,7 @@ VOTable allows qualifying \xmlel{VALUES} with a \xmlel{type} attribute;
 for data discovery, only the case of \verb|actual| is interesting.
 
 When the content model of \xmlel{vs:BaseParam} and its derivatives in
-VODataService \citep{2010ivoa.spec.1202P} was designed, VOTable's
+VODataService 1.1 \citep{2010ivoa.spec.1202P} was designed, VOTable's
 \xmlel{FIELD} was obviously taken as a model, but the column statistics
 was not taken over.
 
@@ -116,11 +125,11 @@ In consequence, the relational metadata schema for the
 \verb|columns| table in TAP \citep{2019ivoa.spec.0927D} even in
 version 1.1 does not include any column statistics.
 
-Meanwhile, with the release of Gaia DR1 in 2016, G\'egory Mantelet
+Meanwhile, with the release of Gaia DR1 in 2016, Gr\'egory Mantelet
 experimented with advanced column statistics on his Gaia mirror
 \citep{data:arigaia}, exposing them both through the service's TAP
-schema -- where extension columns are explictly allowed and even shown
-by clients like TOPCAT \citep{soft:topcat} -- and the VOSI tables
+schema -- where extension columns are explicitly allowed and even shown
+by clients like TOPCAT \citep{2005ASPC..347...29T} -- and the VOSI tables
 endpoint, the latter using VODataService's extension hook of allowing
 arbitrary non-namespace attributes on \xmlel{column}.
 
@@ -128,7 +137,7 @@ Mantelet's column statistics includes:
 
 \begin{description}
 \item[min\_value, max\_value] As in VOTable with \xmlel{type} \verb|actual|
-\item[q1, median, q3} The four quartiles of the distribution of the
+\item[q1, median, q3] The four quartiles of the distribution of the
 values in the column
 \item[mean] The column values' mean value
 \item[filling] The number of non-NULL values in the column
@@ -136,6 +145,7 @@ values in the column
 
 
 \section{Proposed Metadata}
+\label{sect:metadata}
 
 Clearly, the nature and amount of metadata to be processed strongly
 depends on the use cases envisioned.  For instance, the use case
@@ -150,11 +160,18 @@ distribute and use.  It is therefore desirable to identify the
 minimal set of metadata that already enables the most important use
 cases.
 
+An important distinction here is between continuous and discrete
+variables, where the limit between the two is not a principled one in
+digital computers.  For the present purposes, we would propose as a
+practical definition: a column is discrete if an extra value
+needs some explanation (``new object observed'', ``new pipeline now does
+flux calibration'').
+
+
+\subsection{Metadata for Continuous Variables}
+
 Varying Mantelet's metadata set, we propose the following items for
-non-enumerated\footnote{The limit between enumerated and
-continuous columns is not a principled one in digital computers; the
-practical definition would be: a numeric column is continuous if an
-extra value would not have to be explained.} columns:
+non-enumerated columns:
 
 \begin{description}
 \item[min\_value, max\_value] As in Mantelet.  While the items as such are
@@ -162,7 +179,7 @@ typically rather unreliable, as for most astrophysically relevant
 distributions the tails are sparse, they have obvious interpretations,
 allow an estimate of the tailedness of the distribution, and they are
 part of the VOTable model.  Hence, it seems prudent to retain them.
-\item[percentile03, median, percentile97} the 3rd, 50th, and 97th
+\item[percentile03, median, percentile97] the 3rd, 50th, and 97th
 percentiles of the distribution of the values in the column.
 \item[fill\_factor] The ratio of non-NULL values to the number of rows
 in the table.
@@ -180,15 +197,243 @@ the extremes of a distribution is more important of data discovery than
 understanding its behaviour around its modus.  3 and 97 were used
 because for a Gauss distributed random variable, this corresponds to
 roughly $2\sigma$ (or 95\% of the values), which seems a good and
-intuitive handle for ``characteristic data'').
+intuitive handle for ``characteristic data''.
 \item We are dividing Mantelet's filling by the number of rows in the
-table in question.  This is to save clients a lookup in a different
-table to ascertain this value when filtering out tables that only
-occasionally have data of the 
-
+table in question.  The rationale here is that this number is more
+likely to be meaningful in discovery than the raw number of non-NULL
+values in a scenario like, say, ``filter out tables that only rarely
+have redshifts''.
 \end{itemize}
 
-\bibliography{ivoatex/ivoabib,ivoatex/docrepo,local.bib}
+\subsection{Metadata for Discrete Variables}
 
+The prior art for describing discrete variables in the VO is VOTable,
+where \xmlel{VALUES} can have \xmlel{OPTION} children, which in turn
+have \xmlel{name} and \xmlel{value} attributes.  Such option elements
+can be used recursively, so that, in the word of the specification, 
+``a hierarchy of keyword-values pairs can be associated with each
+field''.
+
+Column statistics on discrete variables are necessary in our use cases
+\emph{Calibrated} -- for instance, on columns containing the SSA
+calibration fields or the ObsCore \verb|o_calib_status| -- and
+\emph{Planning}.  In both, no need for ``hierarchies of keyword-value
+pairs'' is discernable.
+
+An equivalent of \xmlel{name}, on the other hand, might have a use in
+data discovery, as it could be a structured indication to humans what a
+given value might mean.  At this point, however, it does not seem to
+offer a substantial benefit over indicating the meaning of a parameter
+and its special values in the human-readable description for a column.
+
+Missing in VOTable while useful at least for \emph{Planning}, possibly
+even for \emph{Calibrated} (say, to filter out data collections where
+only very few datasets have been flux-calibrated), is the frequency of a
+given discrete value.  As for the fill factor in the continuous case,
+giving relative rather than absolute frequencies saves divisions that may
+be difficult in discovery queries.
+
+Hence, the model for discrete variables would be a sequence of (value,
+relative-frequency) pairs.
+
+While metadata for continuous variables as proposed here has
+constant length, metadata for discrete variables modelled in this way
+can arbitrarily grow in
+size.  For instance, by our definitions, source identifiers make up the
+domain of a discrete variable; flooding the registry with the source
+identifiers in a large catalogue almost certainly is not desirable.
+
+It is therefore likely that advice of the kind ``avoid giving
+distributions over more than a few dozen elements'' will be necessary in
+an actual specification.
+
+
+\section{Required Standards Work}
+
+\subsection{VODataService and TAP}
+
+To communicate the extra metadata to the Registry, VODataService
+tablesets would need to be extended.  A relatively un-intrusive change
+to capture continuous-variable statistics would be to add a type
+\xmlel{vs:Stats} to VODataService that has the proposed metadata from
+sect.~\ref{sect:metadata} as attributes and would allow arbitrary
+non-namespace elements as children to facilitate prototyping further
+extensions.  An element of this type would then added to
+\xmlel{vs:BaseParam} as a \xmlel{stats} child with occurrence 0 or 1.
+
+Typing is a problem in this definition; while ``continuous'' variables
+more or less by definition are numeric (where integers, for instance in
+counts, are explicitly included), we believe other sortable types should
+not be excluded needlessly.  Hence, we would propose to have all
+attributes from the domain of the variable\footnote{With the current
+definitions, that is all of them except \emph{fill\_factor}.} of type
+\xmlel{xs:token}  and define that their values are to be parsed by
+VOTable rules using the type information of the associated BaseParam
+(where we might need to comment how this rule should be applied when
+non-VOTable type systems are in use -- or limit the element to
+VOTableType-d Params).
+
+For discrete-variable statistics, this \xmlel{vs:Stats} child would
+probably need to grow children somewhat like \xmlel{OPTION} in VOTable.
+Because the content model is rather different, it probably should not be
+called ``option'', though, but perhaps rather \xmlel{value}, with an
+optional attribute \xmlel{freq}.  As in VOTable, simultaneous use of
+discrete and continuous statistics should probably be discouraged at
+first, as it may be that this mechanism could actually be re-used to
+communicate actual histograms.
+
+The types of discrete variables are essentially unconstrained, and hence
+the value attribute would again be of type \xmlel{xs:token} with VOTable
+syntax.
+
+As the extra statistics enter VODataService, for symmetry they should
+probably also be added in the TAP schema.  Statistics for discrete
+variables would require another TAP schema table or the use of two
+array-valued columns.
+
+In the database table, where on-the-fly conversion by column type is at
+least much harder, the typing question becomes a lot more pressing, in
+particular because clients will want to use the statistics columns in
+comparisons.  We
+suggest that for purposes of the experiment, the statistics columns
+would all be floating point-typed, and annotations for non-numeric
+columns for now are not represented in the interoperable TAP schema.
+
+With similar considerations, we would defer any decision in the question
+of representing statistics of discrete-valued columns to when use cases
+for them are better understood.
+
+\subsection{RegTAP}
+
+To exploit the new metadata in discovery, they need to be included in
+RegTAP's table schema.  For the simple numeric statistics, this could be
+done with a plain extension of \rtent{rr.table\_column}.  As in the
+considerations of the TAP schema, this would leave out statistics on
+non-numeric and in particular discrete values.
+
+An attractive alternative, in particular as long as only a small
+fraction of columns will come with statistics, might be separate tables,
+perhaps separated into statistics for continuous numeric columns
+(\rtent{rr.stat\_num}), for continuous other columns (where their string
+representation would be used for values; \rtent{rr.stat\_token},
+perhaps), and for discrete columns (where again string representations
+would be held in RegTAP; \rtent{rr.stat\_discrete}).
+
+Note that while in particular metadata on discrete variables might be
+interesting for use in declaring input parameters (in
+\xmlel{vs:paramHTTP}) in VOSI capability responses, at this point we do
+not see a sufficient scenario for offering such information in RegTAP's
+discovery-oriented schema.  Hence, the statistics columns would hold
+foreign keys into \rtent{rr.table\_column} and could only be used for
+them (and not for \rtent{rr.intf\_param}).
+
+
+\section{Implementation Status}
+
+In order to assess the feasibility and usability of the proposal, the
+generation and communication of statistics for the continuous variables
+have been implemented in DaCHS using a provisional scheme compatible
+with current VODataService, again inspired by Mantelet's schema; the
+data is not available in the TAP schema so far.
+
+We have written a VOResource extension schema for the namespace
+\nolinkurl{http://dc.g-vo.org/ColStats-1}, canonical prefix
+\verb|g-colstat|, which defines namespaced attributes for use
+with \xmlel{vs:BaseParam} (which allows arbitrary attributes from
+outside the namespace already).  This is not intended as a permanent
+extension but as a transitional device until the \xmlel{stats} element
+proposed above (or something comparable) enters VODataService.
+
+Since version 2.3, the DaCHS server package contains support for
+generating such information. In its scheme, operators run 
+\verb|dachs limits| 
+on tables to obtain statistics, which is then automatically
+inserted into the resource records produced.  Most of the records on
+the OAI-PMH endpoint of GAVO's Heidelberg data
+centre\footnote{\url{http://dc.g-vo.org/oai.xml}} feature these new
+statistics.
+
+On the network of RegTAP services at \url{http://reg.g-vo.org/tap},
+these
+statistics are re-published in a table \rtent{rr.g\_num\_stat},
+containing, at the time of writing, about 1000 records; the prefix
+\verb|g_| should again indicate that this is a provisional extension.
+
+No implementation has been done for statistics of discrete
+columns yet.
+
+Other data center operators are cordially invited to try the proposed
+mechanisms; this will certainly be helpful for evaluating the proposals.
+
+
+\section{Sample Queries}
+
+The most obvious use case, ``give me resources with data reaching a
+certain depth'', could be satisfied with a query like
+
+\begin{lstlisting}[language=SQL]
+SELECT ivoid, table_name, percentile97
+FROM rr.table_column
+NATURAL JOIN rr.res_table
+NATURAL JOIN rr.g_num_stat
+WHERE ucd='phot.mag;em.ir.k'
+  AND percentile97>15
+\end{lstlisting}
+
+where obviously further constraints could be added.  Our \emph{Deep
+Survey} use case, for instance, would also constrain the position:
+
+\begin{lstlisting}[language=SQL]
+SELECT ivoid, table_name, percentile97
+FROM rr.table_column
+NATURAL JOIN rr.res_table
+NATURAL JOIN rr.g_num_stat
+NATURAL JOIN rr.stc_spatial
+WHERE ucd='phot.mag;em.ir.k'
+  AND percentile97>15
+  AND 1=CONTAINS(POINT(10.6742,40.8652), coverage)
+\end{lstlisting}
+
+\section{Implementation Notes}
+
+Most database systems have built-in mechanisms for obtaining
+quantiles.  In Postgres, for instance, quantiles can be computed as in
+
+\begin{lstlisting}[language=SQL]
+SELECT 
+  percentile_cont(ARRAY[0.03, 0.5, 0.97]) 
+    WITHIN GROUP (ORDER BY kmag) AS k_stats,
+  percentile_cont(ARRAY[0.03, 0.5, 0.97]) 
+    WITHIN GROUP (ORDER BY jmag) AS j_stats,
+  percentile_cont(ARRAY[0.03, 0.5, 0.97]) 
+    WITHIN GROUP (ORDER BY hmag) AS h_stats
+FROM twomass.data
+\end{lstlisting}
+
+where the percentiles recommended here are then returned as arrays.
+
+Starting with version 3.28, SQLite has a window function NTILE that could be
+used like this (for statistics of a column \verb|v| in a table
+\verb|vals|):
+
+\begin{lstlisting}[language=SQL]
+SELECT 
+  AVG(v), bucket 
+FROM (
+  SELECT v, NTILE(100) OVER (ORDER BY v) AS bucket 
+  FROM vals) 
+GROUP BY bucket 
+HAVING bucket in (3, 50, 97)
+\end{lstlisting}
+
+where, compared to Postgres' facilities it is a bit harder to obtain
+statistics for multiple columns in one query with NTILE.
+
+For large tables, statistics gathering becomes expensive.  DaCHS hence
+samples progressively smaller parts of tables, starting at 50\% at 10
+Megarows and ending up at 5\% at 10 Gigarows.  This is ad-hoc at the
+moment and, of course, depends on a reasonably non-biased sampling.
+
+\bibliography{ivoatex/ivoabib,ivoatex/docrepo,local.bib}
 
 \end{document}
