@@ -119,8 +119,8 @@ for data discovery, only the case of \verb|actual| is interesting.
 
 When the content model of \xmlel{vs:BaseParam} and its derivatives in
 VODataService 1.1 \citep{2010ivoa.spec.1202P} was designed, VOTable's
-\xmlel{FIELD} was taken as a model, but the support for column statistics
-was not included.
+\xmlel{FIELD} was taken as a model, but the basic column statistics
+were not carried over into VODataService.
 
 In consequence, the relational metadata schema for the
 \verb|columns| table in TAP \citep{2019ivoa.spec.0927D} even in
@@ -162,8 +162,9 @@ minimal set of metadata that already enables the most important use
 cases.
 
 An important distinction here is between continuous and discrete
-variables, where the limit between the two is not a principled one in
-digital computers.  For the present purposes, we would propose as a
+variables, where admittedly the limit between the two is not a 
+principled one in digital computers that only admit a finite number
+for real numbers.  For the present purposes, we would propose as a
 practical definition: a column is discrete if an extra value
 needs some explanation (``new object observed'', ``new pipeline now does
 flux calibration'').
@@ -194,9 +195,9 @@ alternative that has the additional advantage that it is stable against
 common arithmetic operations (e.g., going from parallax to distance).
 \item We have replaced the quartiles with the 3rd and 97th percentiles.
 This is because we believe that in general having robust estimates for
-the extremes of a distribution is more important of data discovery than
+the extremes of a distribution is more important for data discovery than
 understanding its behaviour around its modus.  3 and 97 were used
-because for a Gauss distributed random variable, this corresponds to
+because for a Gauss-distributed random variable, this corresponds to
 roughly $2\sigma$ (or 95\% of the values), which seems a good and
 intuitive handle for ``characteristic data''.
 \item We are dividing Mantelet's filling by the number of rows in the
@@ -228,7 +229,8 @@ offer a substantial benefit over indicating the meaning of a parameter
 and its special values in the human-readable description for a column.
 
 The frequency of a given discrete value is not available in VOTable,
-and would be useful at least for \emph{Planning}, possibly even for \emph{Calibrated}
+and would be useful at least for \emph{Planning}, 
+possibly even for \emph{Calibrated}
 (say, to filter out data collections where only very few datasets have been
 flux-calibrated).  As for the fill factor in the continuous case,
 giving relative rather than absolute frequencies saves divisions that may
@@ -265,7 +267,7 @@ extensions. An element of this type would then be added to
 Typing is a problem in this definition; while ``continuous'' variables
 more or less by definition are numeric (where integers, for instance in
 counts, are explicitly included), we believe other sortable types should
-not be excluded needlessly.  Hence, we would propose to have all
+not be excluded needlessly.  Hence, we propose to have all
 attributes from the domain of the variable\footnote{With the current
 definitions, that is all of them except \emph{fill\_factor}.} of type
 \xmlel{xs:token}  and define that their values are to be parsed by
@@ -277,11 +279,15 @@ VOTableType-d Params).
 For discrete-variable statistics, this \xmlel{vs:Stats} child would
 probably need to grow children somewhat like \xmlel{OPTION} in VOTable.
 Because the content model is rather different, it probably should not be
-called ``option'', though, but perhaps rather \xmlel{value}, with an
-optional attribute \xmlel{freq}.  As in VOTable, simultaneous use of
-discrete and continuous statistics should probably be discouraged at
-first, as it may be that this mechanism could actually be re-used to
-communicate actual histograms.
+called ``option'', though, but perhaps rather \xmlel{VALUE}, with an
+optional attribute \xmlel{freq}.  VOTable discourages giving both
+\xmlel{OPTION} on the one hand and \xmlel{MIN} and \xmlel{MAX} on the
+other.  Similarly, we should probably discourage filling both the
+stats attributes for continuous variables 
+(except \emph{fill\_factor}) and have such \xmlel{VALUE}
+elements in a single \xmlel{vs:Stats}-typed element.  
+In a later extension to better support the \emph{Planning}
+use case, such usage might be endorsed to communicate histograms.
 
 The types of discrete variables are essentially unconstrained, and hence
 the value attribute would again be of type \xmlel{xs:token} with VOTable
@@ -296,7 +302,7 @@ In the database table, where on-the-fly conversion by column type is at
 least much harder, the typing question becomes a lot more pressing, in
 particular because clients will want to use the statistics columns in
 comparisons.  We
-suggest that for purposes of the experiment, the statistics columns
+suggest that for purposes of this experiment, the statistics columns
 would all be floating point-typed, and annotations for non-numeric
 columns for now are not represented in the interoperable TAP schema.
 
@@ -345,7 +351,8 @@ outside the namespace already).  This is not intended as a permanent
 extension but as a transitional device until the \xmlel{stats} element
 proposed above (or something comparable) enters VODataService.
 
-Since version 2.3, the DaCHS server package contains support for
+Since version 2.3, the DaCHS server package \citep{2014A+C.....7...27D}
+contains support for
 generating such information. In its scheme, operators run 
 \verb|dachs limits| 
 on tables to obtain statistics, which is then automatically
