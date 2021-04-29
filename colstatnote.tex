@@ -50,17 +50,17 @@ infrastructure that enable VO applications.
 
 \section{Introduction}
 
-Blind discovery, the location of data relevant to some piece of research
-not by prior knowledge of resources or by a full text search but 
-instead using
-constraints derived from the data itself (``physical properties''), in some
-way is the holy grail of data discovery, in particular facilitating the
-re-use of specialised observations that may be little known outside of a
-specific community but may, for instance, go much deeper than the
-well-known global surveys.
+
+Finding data relevant to some piece of research, not by prior knowledge of
+resources or by a full text search, but instead using constraints derived from
+the data itself (“physical properties”) is called blind discovery. In some ways,
+it is the holy grail of data discovery. Blind discovery uniquely facilitates the
+re-use of specialised observations that may be little known outside of a specific
+community but may, for instance, go much deeper than the well-known global
+surveys.
 
 In Astronomy, the most important physical constraint for blind discovery
-arguably is the the location in space, time, and spectrum.  Making these
+arguably is location in space, time, and spectrum.  Making these
 properties usable for searches in the VO Registry was the focus of the
 Roadmap for Space-Time Discovery in the VO Registry \citep{std:stcReg}.
 
@@ -119,8 +119,8 @@ for data discovery, only the case of \verb|actual| is interesting.
 
 When the content model of \xmlel{vs:BaseParam} and its derivatives in
 VODataService 1.1 \citep{2010ivoa.spec.1202P} was designed, VOTable's
-\xmlel{FIELD} was obviously taken as a model, but the column statistics
-was not taken over.
+\xmlel{FIELD} was taken as a model, but the support for column statistics
+was not included.
 
 In consequence, the relational metadata schema for the
 \verb|columns| table in TAP \citep{2019ivoa.spec.0927D} even in
@@ -138,7 +138,7 @@ Mantelet's column statistics includes:
 
 \begin{description}
 \item[min\_value, max\_value] As in VOTable with \xmlel{type} \verb|actual|
-\item[q1, median, q3] The four quartiles of the distribution of the
+\item[q1, median, q3] The three quartiles of the distribution of the
 values in the column
 \item[mean] The column values' mean value
 \item[filling] The number of non-NULL values in the column
@@ -227,10 +227,10 @@ given value might mean.  At this point, however, it does not seem to
 offer a substantial benefit over indicating the meaning of a parameter
 and its special values in the human-readable description for a column.
 
-Missing in VOTable while useful at least for \emph{Planning}, possibly
-even for \emph{Calibrated} (say, to filter out data collections where
-only very few datasets have been flux-calibrated), is the frequency of a
-given discrete value.  As for the fill factor in the continuous case,
+The frequency of a given discrete value is not available in VOTable,
+and would be useful at least for \emph{Planning}, possibly even for \emph{Calibrated}
+(say, to filter out data collections where only very few datasets have been
+flux-calibrated).  As for the fill factor in the continuous case,
 giving relative rather than absolute frequencies saves divisions that may
 be difficult in discovery queries.
 
@@ -259,7 +259,7 @@ to capture continuous-variable statistics would be to add a type
 \xmlel{vs:Stats} to VODataService that has the proposed metadata from
 sect.~\ref{sect:metadata} as attributes and would allow arbitrary
 non-namespace elements as children to facilitate prototyping further
-extensions.  An element of this type would then added to
+extensions. An element of this type would then be added to
 \xmlel{vs:BaseParam} as a \xmlel{stats} child with occurrence 0 or 1.
 
 Typing is a problem in this definition; while ``continuous'' variables
