@@ -327,6 +327,62 @@ representation would be used for values; \rtent{rr.stat\_token},
 perhaps), and for discrete columns (where again string representations
 would be held in RegTAP; \rtent{rr.stat\_discrete}).
 
+In both cases, the question of types is non-trivial.  While in the VO,
+we generally leave the choice of floating point types in database
+columns to the implementors, in the case of the statistics columns,
+this becomes an interoperability problem.  This is not related to the
+precision, as even the seven significant digits of IEEE singles would
+presumably be more than enough for any sort of realistic discovery
+problem.
+
+However, the domains of the types are very different.  For instance, a
+registry record might well give the median of a well-populated
+symmetrically distributed column as, say, $4.2\cdot 10^{-45}$.  A RegTAP
+instance that holds statistics in REAL columns will fail when natively
+trying to ingest this number.
+
+There are several possibilities for working around this problem:
+
+\begin{enumerate}
+\item One could require record writers to only include numbers
+representable with 64 bit IEEE 754 floating point numbers -- giving them
+rules for how to deal with overflows -- and RegTAP operators to admit
+at least at least such numbers.  Over admitting REALs in the RegTAP
+tables, this would mean about 50 MB of extra storage if the majority of the
+columns currently declared in the Registry had statistics.
+
+\item One could leave the precision of the statistics in the records to
+the service operators, which would give them extra flexibility if they
+actually had huge or tiny numbers (leaving aside the question of how
+they would communicate those in VOTables and whether logarithms should
+be employed), while keeping the requirement for double precision on the
+RegTAP side.  Overflow handling would then have to be specified for
+RegTAP ingestors.\label{opt:oper-regtap}
+
+\item One could leave the choice of the float type to the implementors
+on both sides.  Again, this would only require overflow rules on the
+RegTAP side.  The disadvantage of not having a guaranteed length in RegTAP
+would be that comparisons like $<-3.4\cdot 10^{36}$ would behave
+differently on different RegTAP implementations.
+\end{enumerate}
+
+Given the modest extra storage requirements for all-double statistics
+and the risk of inconsistent results from different implementations
+without the double requirement, requiring IEEE 754 doubles on the RegTAP
+side seems a prudent choice.  On the other hand, overflows will probably
+be more consistently done if handled by the RegTAP ingestors.  This
+would suggest that option~\ref{opt:oper-regtap} above would be
+preferable.
+
+This leaves the question how exactly overflows would be handled.  While
+numbers exceeding the range of doubles seem somewhat outlandish, they
+will certainly occur if representable.  Whether overflows should be
+represented as the maximal/minimal values or as plus or minus infinity
+(or as yet something else), and whether underflows near zero should be
+rounded to zero or be the smallest (by absolute value) representable
+numbers (or yet something else) needs to be investigated based on acutal
+usage patterns.
+
 Note that while in particular metadata on discrete variables might be
 interesting for use in declaring input parameters (in
 \xmlel{vs:paramHTTP}) in VOSI capability responses, at this point we do
